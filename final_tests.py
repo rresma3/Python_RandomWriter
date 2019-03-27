@@ -67,13 +67,20 @@ def windowed(iterable, size):
 
     The windows are produced by sliding a window over the input iterable.
     """
+    # empty list to be returned
     window = list()
+    # iterate over the variables in the iterable
     for v in iterable:
+        # check if the size of the window is in the proper window
         if len(window) < size:
+            # if so then add the next word/char/byte to the window
             window.append(v)
         else:
+            # otherwise, pop front and add to back, sliding the window down
+            # by one unit
             window.pop(0)
             window.append(v)
+        # if the window has reached the size, yield it as a tuple
         if len(window) == size:
             yield tuple(window)
 

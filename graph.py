@@ -22,13 +22,14 @@ class Graph:
         """Our constructor for the Graph class.
 
         Each graph should store a container of all the nodes in the graph.
-        The container should be a dict that maps the specific state of the
-        Markov chain to the specific instantiation of the Vertex that
+        The container should be a dict that maps the specific data of a
+        vertex to the specific instantiation of the Vertex that
         encapsulates that state
 
         TODO: Make sure to incorporate the empty graph case.
         """
-        # Our container of all the vertices in this Graph
+        # Our container of all the vertices in this Graph, this dictionary
+        # should map data to the vertices that encapsulate the data
         self._vertices = {}
 
     @property
@@ -38,35 +39,38 @@ class Graph:
         """
         return frozenset(self._vertices.keys())
 
-    def add_vertex(self, state):
+    def add_vertex(self, data):
         """Method to add another Vertex to this Graph. Simply store a newly
         instantiated Vertex in our container
         """
-        # TODO: make sure that the state can be any value?
-        # Create a new Vertex and add the (k, v) pair of mapping state to
-        # actual Vertex to our Graph
-        self._vertices[state] = Vertex(state)
+        if data is None:
+            raise TypeError("Error: data must be non-null")
+        else:
+            # Create a new Vertex and add the (k, v) pair of mapping data to
+            # actual Vertex to our Graph
+            self._vertices[data] = Vertex(data)
 
-    def __contains__(self, state):
-        """Method overriding. Make sure that we can quickly check to see if
-        a given state is contained in the graph
+    def __contains__(self, data):
+        """Contains method overriding. Make sure that we can quickly check to
+        see if a given data piece is contained in the graph
         """
-        return state in self._vertices.keys()
+        return data in self._vertices.keys()
 
-    def __getitem__(self, state):
-        """Contains method for our Graph class. Make sure that we can quickly
-        access any given state in our graph
+    def __getitem__(self, data):
+        """Get method overriding. Make sure that we can quickly
+        access any given Vertex in our graph
         """
-        # attempt to hash the given state to return its corresponding Vertex
+        # attempt to hash the given data to return its corresponding Vertex
         try:
-            return self._vertices[state]
+            return self._vertices[data]
         except ValueError:
-            raise KeyError(f"State {repr(state)} is not in the Graph")
+            raise KeyError(f"State {repr(data)} is not in the Graph")
 
     def compute_probabilities(self):
         """Method to traverse our graph entirely and compute the
         probabilities of each of the paths
         """
+        # TODO: KEEP GRAPH CONTEXT MAN. SIMPLE AND GENERIC, NO COMPUTATION HERE
         raise NotImplementedError()
 
 
@@ -78,27 +82,26 @@ Models a network of nodes where the nodes (vertices) are connected by edges
 
 
 class Vertex:
-    def __init__(self, state):
+    def __init__(self, data):
         """Our constructor for our Vertex class.
 
-        Vertices should contain the current state of the Markov chain in which
-        we are in as well of a storage container of all the outgoing edges that
-        are directed from this Vertex to another Vertex
+        Vertices should contain data as well of a storage container of all the
+        outgoing edges that are directed from this Vertex to another Vertex
         """
         # Our current state of history in regards to
-        self._state = state
-        # Our container for possible next states which is encapsulated by
-        # dictionary mappings of tokens to Edges
+        self._data = data
+        # Our container for edges that leave this vertex which is
+        # encapsulated by dictionary mappings of tokens to Edges
         self._outgoing_edges = {}
         # TODO: may need to add another dict for fast lookups that maps Edge
         #  objects to probabilities
 
     @property
-    def state(self):
+    def data(self):
         """Getter for Vertex that returns the current state (differentiates
         vertices from one another).
         """
-        return self._state
+        return self._data
 
     @property
     def outgoing_edges(self):

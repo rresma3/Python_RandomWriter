@@ -179,13 +179,14 @@ http://www.gutenberg.org/cache/epub/100/pg100.txt
 """
 from enum import Enum
 import graph
+import final_tests.py
 
 
 class Tokenization(Enum):
     word = 1
     character = 2
     byte = 3
-    none = 4
+    none = None
 
 
 class RandomWriter(object):
@@ -315,7 +316,25 @@ class RandomWriter(object):
         # you need to convert iterables, remember how much I hate
         # indexing into lists and that not every iterable you get here
         # will support indexing.
-        raise NotImplementedError
+
+        # Using Arthur Peters' function, convert the input iterable into
+        # a new iterable with properly sized windows
+        states = final_tests.windowed(data, self.level)
+        # data is a string
+        if self.tokenization is Tokenization.character or self.tokenization \
+                == Tokenization.word:
+            for state in states:
+                ...
+        # data is bytes
+        elif self.tokenization == Tokenization.byte:
+            ...
+        # data is an iterable
+        elif self.tokenization == Tokenization.none:
+            ...
+        else:
+            raise TypeError("Error: the data passed in is not of acceptable "
+                            "form: iterable/string/bytes")
+
 
 """Modules you will want to look at:
 * enum
