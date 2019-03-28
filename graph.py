@@ -50,6 +50,11 @@ class Graph:
             # actual Vertex to our Graph
             self._vertices[data] = Vertex(data)
 
+    def size(self):
+        """Size method for our graph class. Allows us to quickly see the
+        number of vertices in this graph"""
+        return len(self._vertices)
+
     def __contains__(self, data):
         """Contains method overriding. Make sure that we can quickly check to
         see if a given data piece is contained in the graph
@@ -66,12 +71,20 @@ class Graph:
         except ValueError:
             raise KeyError(f"State {repr(data)} is not in the Graph")
 
-    def compute_probabilities(self):
-        """Method to traverse our graph entirely and compute the
-        probabilities of each of the paths
+    def print_graph(self):
+        """Method to traverse our graph entirely and output all the vertices
+        and edges for those vertices
         """
-        # TODO: KEEP GRAPH CONTEXT MAN. SIMPLE AND GENERIC, NO COMPUTATION HERE
-        raise NotImplementedError()
+        for v in self.vertices:
+            vert_obj = self._vertices[v]
+            print(f"vertex: {v}")
+            print(f"\t(data: {v}, v_object: {vert_obj})")
+            print("\tcorresponding edges: ")
+            for edge in vert_obj.outgoing_edges:
+                edge_obj = vert_obj.get_edge(edge)
+                print(f"\t\tedge: {edge}")
+                print(f"\t\t\t(token: {edge}, e_object: {edge_obj})")
+                print(f"\t\t\tweight: {edge_obj}, dest: {edge_obj.dest_vertex}")
 
 
 """My implementation of a Vertex that will be used as containers to store
@@ -108,7 +121,23 @@ class Vertex:
         """Getter for Vertex that returns an immutable dictionary of all the
         outgoing edges from this Vertex
         """
-        return frozenset(self._outgoing_edges.items())
+        return frozenset(self._outgoing_edges.keys())
+
+    def has_edge(self, edge_token):
+        """Contains method. Make sure that we can quickly check to
+        see if a given edge exists in our outgoing vertex
+        """
+        return edge_token in self._outgoing_edges.keys()
+
+    def get_edge(self, edge_token):
+        """Get method overriding. Make sure that we can quickly
+        access any given Vertex in our graph
+        """
+        # attempt to hash the given data to return its corresponding Vertex
+        try:
+            return self._outgoing_edges[edge_token]
+        except ValueError:
+            raise KeyError(f"State {repr(edge_token)} is not an Edge")
 
     def add_edge(self, dest, token):
         """Method to add a connection from the current node to the
@@ -116,7 +145,7 @@ class Vertex:
         """
         # Null check on the destination vertex
         if dest:
-            self._outgoing_edges[token] = Edge(dest, token, 0)
+            self._outgoing_edges[token] = Edge(dest, token, 1)
         else:
             raise ValueError("Error: dest vertex hasn't been instantiated")
 
@@ -129,7 +158,7 @@ Models connections between vertices with directed edges.
 
 
 class Edge:
-    def __init__(self, vertex, token, probability=0):
+    def __init__(self, dest_vertex, token, weight=0):
         """Our constructor for an edge.
 
         Edges have a vertex attribute in which it is the vertex to which the
@@ -138,14 +167,14 @@ class Edge:
         probability attribute to simulate our statistically random choices.
         """
         # Instance attributes
-        self._vertex = vertex
+        self._dest_vertex = dest_vertex
         self._token = token
-        self._probability = probability
+        self._weight = weight
 
     @property
-    def vertex(self):
+    def dest_vertex(self):
         """Getter that returns the vertex to which this Edge is directed"""
-        return self._vertex
+        return self._dest_vertex
 
     @property
     def token(self):
@@ -153,19 +182,14 @@ class Edge:
         return self._token
 
     @property
-    def probability(self):
+    def weight(self):
         """Getter that returns the probability in which this Edge will be
         chosen in a path algorithm"""
-        return self._probability
+        return self._weight
 
-    @probability.setter
-    def probability(self, probability):
-        """Setter for our probability attribute.
+    def incr_weight(self, amount):
+        """Incrementer for our probability attribute.
 
-        In the traversal algorithm of our Graph, this will only be set once.
+        In the traversal algorithm of our Graph, this will be a counter
         """
-        # Make sure that the probability has not already been set
-        if self._probability == 0:
-            self._probability = probability
-        else:
-            raise RuntimeError("Error: This Edge already has set probability")
+        self._weight += amount
