@@ -179,6 +179,11 @@ http://www.gutenberg.org/cache/epub/100/pg100.txt
 """
 from enum import Enum, auto
 import graph
+import random
+import urllib.request
+import itertools
+import pickle
+from six import string_types
 
 
 class Tokenization(Enum):
@@ -220,7 +225,7 @@ class RandomWriter(object):
                              f"be of acceptable type")
         # instance attributes
         self._level = level
-        self._tokenization = tokenization
+        self._mode = tokenization
         # initialize our Markov Chain
         self.chain = graph.Graph()
         # initialize our probability sum container to hold the total sum of
@@ -234,11 +239,11 @@ class RandomWriter(object):
         return self._level
 
     @property
-    def tokenization(self):
+    def mode(self):
         """Getter that returns the given RandomWriter's tokenization
         attribute.
         """
-        return self._tokenization
+        return self._mode
 
     def add_chain(self, data):
         """Function to add a new state to our Markov Chain, uses our Graph's
@@ -276,8 +281,29 @@ class RandomWriter(object):
         """
         # add an edge from source's vert obj to dest's vert obj
         self.chain[source].add_edge(self.chain[dest], token)
-        # add 1 to the number of outgoing edges from the source destination
-        self._incr_prob_sum(source)
+
+    def _choose_rand_edge(self, vertex):
+        """Randomly traversing the Markov Chain that we have already
+        constructed with our train algorithm, output a single token
+
+        Use our random graph traversal algorithm where we choose a number
+        between 1 the sum of the total weights, if that number is less than
+        the state we are currently evaluating, then we have found our next
+        path, otherwise we subtract that number from our randomly chosen
+        number and continue to evaluate the new difference against the next
+        state
+        """
+        # index into our total probability sum taken from all of the
+        rand_val = random.randint(0, self.prob_sums[vertex.data])
+        # iterate over our current outgoing edges
+        for choice in vertex.outgoing_edges:
+            curr_edge = vertex.get_edge(choice)
+            # current edge's weight is less than the random val, success
+            if rand_val <= curr_edge.weight:
+                return curr_edge
+            # otherwise subtract that edge's weight from rand_val and continue
+            else:
+                rand_val -= curr_edge.weight
 
     def generate(self):
         """Generate tokens using the model.
@@ -291,8 +317,25 @@ class RandomWriter(object):
         new starting node at random and continuing.
 
         """
-        # TODO: GENERATOR OBJ FOR ONCE WE HAVE OUR GRAPH
-        raise NotImplementedError
+        # randomly select a starting state until found one w/ outgoing edges
+        state = random.choice(list(self.chain.vertices))
+        vertex = self.chain[state]
+        # ensure that we at least pick a starting state w/ outgoing edges
+        while not vertex.outgoing_edges:
+            state = random.choice(list(self.chain.vertices))
+            vertex = self.chain[state]
+
+        # continue to traverse and generate output indefinitely
+        while True:
+            # choose an edge weighted-randomly
+            curr_edge = self._choose_rand_edge(vertex)
+            yield curr_edge.token
+            # go to the next vertex, taking the edge we just yielded
+            vertex = curr_edge.dest_vertex
+            # handle case where vertex has no outgoing edges
+            while not vertex.outgoing_edges:
+                state = random.choice(list(self.chain.vertices))
+                vertex = self.chain[state]
 
     def generate_file(self, filename, amount):
         """Write a file using the model.
@@ -310,8 +353,21 @@ class RandomWriter(object):
 
         Make sure to open the file in the appropriate mode.
         """
-        # TODO: OUTPUT GENERATOR YIELDED RANDOMIZED TOKENS TO FILE
-        raise NotImplementedError
+        # open the file in byte mode if byte tokenized
+        fi = open(filename, "wb") if self.mode is Tokenization.byte else \
+            open(filename, "w", encoding="utf-8")
+        # only get the first "amount" elements in our generated data
+        for token in itertools.islice(self.generate(), amount):
+            # make sure we correctly format our output
+            if self.mode is Tokenization.word:
+                fi.write(token+" ")
+            elif self.mode is Tokenization.none or self.mode is None:
+                fi.write(str(token)+" ")
+            elif self.mode is Tokenization.byte:
+                fi.write(bytes([token]))
+            else:
+                fi.write(str(token))
+        fi.close()
 
     def save_pickle(self, filename_or_file_object):
         """Write this model out as a Python pickle.
@@ -324,7 +380,18 @@ class RandomWriter(object):
         in binary mode.
 
         """
-        raise NotImplementedError
+        # file object
+        if hasattr(filename_or_file_object, "read"):
+            # save this RandomWriter to a pickle
+            pickle.dump(self, filename_or_file_object)
+        # file name
+        elif isinstance(filename_or_file_object, string_types):
+            # open the file in the correct mode
+            with open(filename_or_file_object, "wb") as fi:
+                pickle.dump(self, fi)
+        else:
+            raise ValueError(f"Error: {filename_or_file_object} is not a "
+                             f"filename or file object")
 
     @classmethod
     def load_pickle(cls, filename_or_file_object):
@@ -341,7 +408,18 @@ class RandomWriter(object):
         in binary mode.
 
         """
-        raise NotImplementedError
+        # file object
+        if hasattr(filename_or_file_object, "read"):
+            # save this RandomWriter to a pickle
+            pickle.load(filename_or_file_object)
+        # file name
+        elif isinstance(filename_or_file_object, string_types):
+            # open the file in the correct mode
+            with open(filename_or_file_object, "rb") as fi:
+                pickle.load(fi)
+        else:
+            raise ValueError(f"Error: {filename_or_file_object} is not a "
+                             f"filename or file object")
 
     def train_url(self, url):
         """Compute the probabilities based on the data downloaded from url.
@@ -356,7 +434,21 @@ class RandomWriter(object):
         Do not duplicate any code from train_iterable.
 
         """
-        raise NotImplementedError
+        # Ensure that the mode is correct
+        if self.mode is Tokenization.none or self.mode is None:
+            raise ValueError("Error: this type of training is only supported "
+                             "if the tokenization mode is not none")
+
+        # Open the url and read in the data
+        with urllib.request.urlopen(url) as f:
+            # if byte mode, we don't have to decode
+            if self.mode is Tokenization.byte:
+                data = f.read()
+            # otherwise, make sure we decode as utf-8
+            else:
+                data = f.read().decode()
+            # train the data
+            self.train_iterable(data)
 
     def _gen_tokenized_data(self, data, size):
         """Helper function to generate tokens of proper length based on the
@@ -370,7 +462,7 @@ class RandomWriter(object):
         else if tokenization is byte then data is a bytestream
 
         NOTE: code taken from Arthur Peters' windowed() function in
-        final_tests.py, Thanks Mr. Peters!
+        final_tests.py
 
         TODO: handle k = 0 level case
         """
@@ -389,41 +481,7 @@ class RandomWriter(object):
                 window.append(elem)
             # if the window has reached specified size, yield the proper state
             if len(window) == size:
-                # tokenize by string
-                if self.tokenization is Tokenization.character or \
-                        self.tokenization is Tokenization.word:
-                    yield "".join(window)
-                # tokenize by byte
-                elif self.tokenization is Tokenization.byte:
-                    yield b"".join(window)
-                # simply yield another iterable
-                else:
-                    yield tuple(window)
-
-    def _data_type_check(self, data):
-        """Helper function to make sure that the data is in the correct form
-        for this RandomWriter's Tokenization
-
-        If the tokenization mode is none, data must be an iterable. If
-        the tokenization mode is character or word, then data must be
-        a string. Finally, if the tokenization mode is byte, then data
-        must be a bytes. If the type is wrong raise TypeError.
-        """
-        # if in character or word tokenization, data must be a str
-        if self.tokenization is Tokenization.character or self.tokenization \
-                is Tokenization.word:
-            return isinstance(data, str)
-        # if in byte tokenization, data must by raw bytes
-        elif self.tokenization is Tokenization.byte:
-            return isinstance(data, bytes)
-        # if in none tokenization, data must be an iterable
-        elif self.tokenization is Tokenization.none or self.tokenization is \
-                Tokenization.none.value:
-            return hasattr(data, '__iter__')
-        # something went wrong with the constructor
-        else:
-            raise TypeError("Error: this RandomWriter does not have a proper "
-                            "tokenization")
+                yield tuple(window)
 
     def _build_markov_chain(self, states):
         """Helper function to help build the Markov Chain graph and compute
@@ -456,6 +514,8 @@ class RandomWriter(object):
                 self.add_chain(new_state)
                 # add a connection from the old chain to the new chain
                 self.add_conn(old_state, new_state, new_state[-1])
+            # update the old state's total probability sum
+            self._incr_prob_sum(old_state)
             # iterate to the next state
             old_state = new_state
 
@@ -466,19 +526,9 @@ class RandomWriter(object):
         simpler to store it don't worry about it. For most input types
         you will not need to store it.
         """
-        # type check on the input data
-        if not self._data_type_check(data):
-            raise TypeError(f"Error: data is not in correct form for this "
-                            f"RW's mode -> {self.tokenization}")
-
         # if we are in word tokenization then split data along white spaces
-        if self.tokenization is Tokenization.word:
+        if self.mode is Tokenization.word:
             states = self._gen_tokenized_data(data.split(), self.level)
-        # if we are in byte tokenization then split data by byte
-        elif self.tokenization is Tokenization.byte:
-            states = self._gen_tokenized_data((data[i:i+1] for i in range(
-                len(data))), self.level)
-        # otherwise, iterate over data normally to create new gen of states
         else:
             states = self._gen_tokenized_data(data, self.level)
         # build our Markov Chain based on the generator we've constructed from

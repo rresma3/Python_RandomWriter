@@ -26,7 +26,6 @@ class Graph:
         vertex to the specific instantiation of the Vertex that
         encapsulates that state
 
-        TODO: Make sure to incorporate the empty graph case.
         """
         # Our container of all the vertices in this Graph, this dictionary
         # should map data to the vertices that encapsulate the data
@@ -84,7 +83,8 @@ class Graph:
                 edge_obj = vert_obj.get_edge(edge)
                 print(f"\t\tedge: {edge}")
                 print(f"\t\t\t(token: {edge}, e_object: {edge_obj})")
-                print(f"\t\t\tweight: {edge_obj}, dest: {edge_obj.dest_vertex}")
+                print(f"\t\t\tweight: {edge_obj.weight}, dest: "
+                      f"{edge_obj.dest_vertex}")
 
 
 """My implementation of a Vertex that will be used as containers to store
@@ -106,8 +106,6 @@ class Vertex:
         # Our container for edges that leave this vertex which is
         # encapsulated by dictionary mappings of tokens to Edges
         self._outgoing_edges = {}
-        # TODO: may need to add another dict for fast lookups that maps Edge
-        #  objects to probabilities
 
     @property
     def data(self):
